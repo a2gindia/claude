@@ -1,0 +1,32 @@
+{
+  "name": "a2g-plan-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A2G Diet Plan Generation Service — Tally webhook -> queue -> compute nutrition -> Claude -> Supabase (plan + magic link) -> Resend email, with retries/alerts/run-logging. Steps 1-9 (deploy-ready: Dockerfile + docs); Bitespeed (7) optional.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "plan": "tsx test/run-local.ts",
+    "store": "tsx test/run-store.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "resend": "^6.16.0",
+    "tsx": "^4.22.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.0.1",
+    "typescript": "^6.0.3"
+  }
+}

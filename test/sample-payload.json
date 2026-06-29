@@ -1,0 +1,116 @@
+{
+  "eventId": "evt_demo_0001",
+  "eventType": "FORM_RESPONSE",
+  "createdAt": "2026-06-27T10:00:00.000Z",
+  "data": {
+    "responseId": "resp_demo_0001",
+    "submissionId": "sub_demo_0001",
+    "formId": "obGPpb",
+    "formName": "A2G Plan Intake",
+    "fields": [
+      { "key": "q_name", "label": "Name", "type": "INPUT_TEXT", "value": "Rohan Mehta" },
+      { "key": "q_email", "label": "Email", "type": "INPUT_EMAIL", "value": "rohan@example.com" },
+      { "key": "q_phone", "label": "Phone (WhatsApp)", "type": "INPUT_PHONE_NUMBER", "value": "+919812345678" },
+      { "key": "q_product", "label": "Product purchased", "type": "INPUT_TEXT", "value": "A2G Whey Protein (1kg)" },
+      { "key": "q_age", "label": "Age", "type": "INPUT_NUMBER", "value": 30 },
+      {
+        "key": "q_gender",
+        "label": "Gender",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["opt_m"],
+        "options": [
+          { "id": "opt_m", "text": "Male" },
+          { "id": "opt_f", "text": "Female" },
+          { "id": "opt_n", "text": "Prefer not to say" }
+        ]
+      },
+      { "key": "q_height", "label": "Height (cm)", "type": "INPUT_NUMBER", "value": 178 },
+      { "key": "q_weight", "label": "Weight (kg)", "type": "INPUT_NUMBER", "value": 82 },
+      {
+        "key": "q_goal",
+        "label": "Primary goal",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["g_mg"],
+        "options": [
+          { "id": "g_fl", "text": "Fat loss" },
+          { "id": "g_mg", "text": "Muscle gain" },
+          { "id": "g_rc", "text": "Recomposition" },
+          { "id": "g_pf", "text": "Performance" }
+        ]
+      },
+      {
+        "key": "q_activity",
+        "label": "Activity level",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["a_mod"],
+        "options": [
+          { "id": "a_sed", "text": "Sedentary" },
+          { "id": "a_li", "text": "Light" },
+          { "id": "a_mod", "text": "Moderate" },
+          { "id": "a_hi", "text": "High" }
+        ]
+      },
+      {
+        "key": "q_training",
+        "label": "Training days per week",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["t_45"],
+        "options": [
+          { "id": "t_01", "text": "0-1" },
+          { "id": "t_23", "text": "2-3" },
+          { "id": "t_45", "text": "4-5" },
+          { "id": "t_6", "text": "6+" }
+        ]
+      },
+      {
+        "key": "q_diet",
+        "label": "Diet preference",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["d_egg"],
+        "options": [
+          { "id": "d_vegan", "text": "Vegan" },
+          { "id": "d_veg", "text": "Vegetarian" },
+          { "id": "d_egg", "text": "Eggetarian" },
+          { "id": "d_nv", "text": "Non-veg" }
+        ]
+      },
+      {
+        "key": "q_avoid",
+        "label": "Foods to avoid",
+        "type": "CHECKBOXES",
+        "value": ["av_none"],
+        "options": [
+          { "id": "av_dairy", "text": "dairy" },
+          { "id": "av_gluten", "text": "gluten" },
+          { "id": "av_eggs", "text": "eggs" },
+          { "id": "av_red", "text": "red meat" },
+          { "id": "av_none", "text": "none" }
+        ]
+      },
+      {
+        "key": "q_meals",
+        "label": "Meals per day",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["m_4"],
+        "options": [
+          { "id": "m_3", "text": "3" },
+          { "id": "m_4", "text": "4" },
+          { "id": "m_5", "text": "5" }
+        ]
+      },
+      {
+        "key": "q_workout",
+        "label": "Preferred workout time",
+        "type": "MULTIPLE_CHOICE",
+        "value": ["w_eve"],
+        "options": [
+          { "id": "w_morn", "text": "Morning" },
+          { "id": "w_aft", "text": "Afternoon" },
+          { "id": "w_eve", "text": "Evening" },
+          { "id": "w_night", "text": "Night" }
+        ]
+      },
+      { "key": "q_medical", "label": "Any medical condition?", "type": "TEXTAREA", "value": "" }
+    ]
+  }
+}
