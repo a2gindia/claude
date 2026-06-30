@@ -1,7 +1,13 @@
 // Verify + normalize the Tally webhook payload into the §4 schema.
-// Tally sends field IDs/keys, not names — we map by field label (and type), and
-// resolve choice option-ids to their text. Confirm Tally's exact signature header
-// against their docs at deploy time; we use the documented HMAC-SHA256/base64 scheme.
+//
+// Signature: Tally signs HMAC-SHA256 (base64) of the JSON payload and sends it in the
+// `Tally-Signature` header. Per Tally's docs the signed string is JSON.stringify(req.body)
+// (the parsed body), which can differ from the raw transmitted bytes — so we verify
+// against BOTH the re-stringified parsed body and the raw body, accepting either.
+//
+// Field mapping: Tally sends field keys + labels + option ids. We map by label keywords
+// and resolve choice option-ids to text, then coerce that text to our enums by keyword
+// (real-form option texts are verbose, e.g. "Performance / strength", "Non-vegetarian").
 import crypto from "node:crypto";
 import type {
   ActivityLevel,
@@ -17,7 +23,7 @@ interface TallyOption {
 }
 interface TallyField {
   key: string;
-  label?: string;
+  label?: string | null;
   type?: string;
   value: unknown;
   options?: TallyOption[];
@@ -35,18 +41,23 @@ export interface TallyWebhookBody {
   };
 }
 
-/** HMAC-SHA256(rawBody, secret) as base64, compared timing-safely to the header. */
+/**
+ * HMAC-SHA256(payload, secret) as base64, compared timing-safely to the header. Accepts
+ * any of the candidate payloads (JSON.stringify of the parsed body, and/or the raw body).
+ */
 export function verifyTallySignature(
-  rawBody: Buffer | string,
   signature: string | undefined,
   secret: string,
+  ...payloads: Array<string | Buffer | undefined>
 ): boolean {
   if (!signature || !secret) return false;
-  const digest = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
-  const a = Buffer.from(digest);
-  const b = Buffer.from(signature);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  const sig = Buffer.from(signature);
+  for (const p of payloads) {
+    if (p == null) continue;
+    const digest = Buffer.from(crypto.createHmac("sha256", secret).update(p).digest("base64"));
+    if (digest.length === sig.length && crypto.timingSafeEqual(digest, sig)) return true;
+  }
+  return false;
 }
 
 function optionText(field: TallyField, id: string): string {
@@ -81,16 +92,33 @@ const asArray = (v: string | string[] | undefined): string[] =>
 const asNumber = (v: string | string[] | undefined): number =>
   Number(asString(v).replace(/[^\d.]/g, ""));
 
-function coerceEnum<T extends string>(
-  value: string,
-  allowed: readonly T[],
-  fallback: T,
-  field: string,
-): T {
-  const found = allowed.find((a) => a.toLowerCase() === value.toLowerCase().trim());
-  if (found) return found;
-  if (value) console.warn(`[tally] unexpected ${field} "${value}" — defaulting to "${fallback}"`);
+/** Map a (possibly verbose) option text to a canonical enum via ordered keyword rules. */
+function matchEnum<T extends string>(value: string, rules: Array<[string, T]>, fallback: T): T {
+  const v = value.toLowerCase();
+  for (const [kw, canon] of rules) if (v.includes(kw)) return canon;
+  if (value) console.warn(`[tally] unmatched "${value}" — defaulting to "${fallback}"`);
   return fallback;
+}
+
+/** Collapse Tally's verbose "foods to avoid" option texts to clean keywords. */
+function cleanAvoid(texts: string[]): string[] {
+  const out = new Set<string>();
+  for (const t of texts) {
+    const l = t.toLowerCase();
+    if (l.includes("dairy") || l.includes("lactose")) out.add("dairy");
+    else if (l.includes("gluten")) out.add("gluten");
+    else if (l.includes("egg")) out.add("eggs");
+    else if (l.includes("red meat")) out.add("red meat");
+    else if (l.includes("none")) out.add("none");
+    else if (l.trim()) out.add(l.trim());
+  }
+  return [...out];
+}
+
+/** Treat "NA"/"none"/etc. as no medical condition. */
+function cleanMedical(s: string): string {
+  const l = s.trim().toLowerCase();
+  return ["", "na", "n/a", "none", "no", "nil", "-", "."].includes(l) ? "" : s.trim();
 }
 
 export function normalizeTallyPayload(body: TallyWebhookBody): NormalizedSubmission {
@@ -103,14 +131,11 @@ export function normalizeTallyPayload(body: TallyWebhookBody): NormalizedSubmiss
   const get = (pred: (label: string, type: string) => boolean) =>
     resolveValue(findField(fields, pred));
 
-  const meals_raw = asString(get((l) => l.includes("meals")));
-  const meals_parsed = parseInt(meals_raw, 10);
-  const meals_per_day = [3, 4, 5].includes(meals_parsed) ? meals_parsed : 3;
-  if (!Number.isFinite(meals_parsed) || ![3, 4, 5].includes(meals_parsed)) {
-    console.warn(`[tally] meals_per_day "${meals_raw}" not 3/4/5 — defaulting to 3`);
-  }
+  const mealsRaw = asString(get((l) => l.includes("meals") || l.includes("meal")));
+  const mealsParsed = parseInt(mealsRaw, 10);
+  const meals_per_day = [3, 4, 5].includes(mealsParsed) ? mealsParsed : 3;
 
-  const avoid = asArray(get((l) => l.includes("avoid"))).map((x) => x.toLowerCase().trim());
+  const avoid = cleanAvoid(asArray(get((l) => l.includes("avoid"))));
 
   return {
     submission_id,
@@ -121,36 +146,49 @@ export function normalizeTallyPayload(body: TallyWebhookBody): NormalizedSubmiss
     ),
     product: asString(get((l) => l.includes("product"))),
     age: asNumber(get((l) => l === "age" || l.includes("age"))),
-    gender: coerceEnum<Gender>(
+    gender: matchEnum<Gender>(
       asString(get((l) => l.includes("gender"))),
-      ["Male", "Female", "Prefer not to say"],
+      [["female", "Female"], ["male", "Male"], ["prefer", "Prefer not to say"]],
       "Prefer not to say",
-      "gender",
     ),
     height_cm: asNumber(get((l) => l.includes("height"))),
     weight_kg: asNumber(get((l) => l.includes("weight"))),
-    goal: coerceEnum<Goal>(
+    goal: matchEnum<Goal>(
       asString(get((l) => l.includes("goal"))),
-      ["Fat loss", "Muscle gain", "Recomposition", "Performance"],
+      [
+        ["recomp", "Recomposition"],
+        ["perform", "Performance"],
+        ["strength", "Performance"],
+        ["fat loss", "Fat loss"],
+        ["fat-loss", "Fat loss"],
+        ["muscle", "Muscle gain"],
+      ],
       "Recomposition",
-      "goal",
     ),
-    activity_level: coerceEnum<ActivityLevel>(
-      asString(get((l) => l.includes("activity"))),
-      ["Sedentary", "Light", "Moderate", "High"],
+    activity_level: matchEnum<ActivityLevel>(
+      asString(get((l) => l.includes("active") || l.includes("activity"))),
+      [["sedentary", "Sedentary"], ["light", "Light"], ["moder", "Moderate"], ["high", "High"]],
       "Moderate",
-      "activity_level",
     ),
-    training_days: asString(get((l) => l.includes("training"))),
-    diet_pref: coerceEnum<DietPref>(
-      asString(get((l) => l.includes("diet"))),
-      ["Vegan", "Vegetarian", "Eggetarian", "Non-veg"],
+    training_days: asString(get((l) => l.includes("train"))),
+    diet_pref: matchEnum<DietPref>(
+      // exclude the email label "…send your diet plan" and the consent "…diet plan is…"
+      asString(get((l, t) => l.includes("diet") && !l.includes("plan") && t !== "INPUT_EMAIL")),
+      [
+        ["vegan", "Vegan"],
+        ["eggetarian", "Eggetarian"],
+        ["non-veg", "Non-veg"],
+        ["nonveg", "Non-veg"],
+        ["non veg", "Non-veg"],
+        ["vegetarian", "Vegetarian"],
+      ],
       "Vegetarian",
-      "diet_pref",
     ),
     foods_to_avoid: avoid.length ? avoid : ["none"],
     meals_per_day,
     workout_time: asString(get((l) => l.includes("workout"))),
-    medical_condition: asString(get((l) => l.includes("medical") || l.includes("condition") || l.includes("health"))),
+    medical_condition: cleanMedical(
+      asString(get((l) => l.includes("medical") || l.includes("condition") || l.includes("health"))),
+    ),
   };
 }

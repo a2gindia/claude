@@ -49,7 +49,8 @@ app.post("/webhook/tally", (req: Request, res: Response) => {
   const rawBody = (req as Request & { rawBody?: Buffer }).rawBody ?? Buffer.from("");
 
   if (secret) {
-    if (!verifyTallySignature(rawBody, signature, secret)) {
+    // Tally signs HMAC-SHA256(JSON.stringify(req.body)); try that and the raw body.
+    if (!verifyTallySignature(signature, secret, JSON.stringify(req.body), rawBody)) {
       console.warn("[webhook] invalid Tally signature — rejecting");
       res.status(401).json({ error: "invalid signature" });
       return;
