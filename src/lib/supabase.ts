@@ -31,22 +31,33 @@ export interface WritePlanInput {
   phone: string;
   name: string;
   plan_json: Plan;
+  /** Raw normalized intake — stored on the row so the app's workout engine can read it. */
+  intake?: NormalizedSubmission;
 }
 
 /** Insert a finished plan into the existing `plans` table. Returns the new row id. */
 export async function writePlan(input: WritePlanInput): Promise<string> {
   const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("plans")
-    .insert({
-      customer_email: input.email,
-      customer_phone: input.phone,
-      customer_name: input.name,
-      plan_json: input.plan_json,
-      // id / created_at: table defaults. user_id: left null — the app links it on first login.
-    })
-    .select("id")
-    .single();
+  const base = {
+    customer_email: input.email,
+    customer_phone: input.phone,
+    customer_name: input.name,
+    plan_json: input.plan_json,
+    // id / created_at: table defaults. user_id: left null — the app links it on first login.
+  };
+
+  const insert = (row: Record<string, unknown>) =>
+    supabase.from("plans").insert(row).select("id").single();
+
+  // Try with intake_json; if that column hasn't been migrated yet, fall back
+  // to a plain insert so plan delivery never breaks.
+  let { data, error } = await insert(
+    input.intake ? { ...base, intake_json: input.intake } : base,
+  );
+  if (error && /intake_json/i.test(error.message) && input.intake) {
+    console.warn("[writePlan] intake_json column missing — inserting without it. Run supabase/plans-intake.sql.");
+    ({ data, error } = await insert(base));
+  }
 
   if (error) throw new Error(`writePlan failed: ${error.message}`);
   if (!data?.id) throw new Error("writePlan: insert returned no id");

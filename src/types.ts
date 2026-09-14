@@ -34,6 +34,26 @@ export interface NormalizedSubmission {
   workout_time: string;
   /** free text, may be "" — if non-empty -> conservative + doctor note */
   medical_condition: string;
+
+  // --- V2 intake (used by the app's workout engine + Week-1 bridge) ---
+  /** 90-day goal in the customer's own words, may be "" */
+  target_text: string;
+  /** Beginner | Intermediate | Advanced */
+  experience: string;
+  /** Full gym | Home (dumbbells + bands) | Home (bodyweight only) | Mixed */
+  equipment: string;
+  /** training minutes per session (30 | 45 | 60 | 75) */
+  session_minutes: number;
+  /** subset of: lower back / knees / shoulders / elbows/wrists / neck / none */
+  injuries: string[];
+  /** I cook | Family cooks | Tiffin/mess | Eat out often */
+  cooking: string;
+  /** Lean | Moderate | Flexible */
+  food_budget: string;
+  /** wants a daily 10k-step target */
+  steps_goal: boolean;
+  /** typical sleep band, e.g. "6-7 hours" */
+  sleep_baseline: string;
 }
 
 /**

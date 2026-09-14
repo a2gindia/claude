@@ -115,6 +115,22 @@ function cleanAvoid(texts: string[]): string[] {
   return [...out];
 }
 
+/** Collapse Tally's "injuries / problem areas" option texts to clean keywords. */
+function cleanInjuries(texts: string[]): string[] {
+  const out = new Set<string>();
+  for (const t of texts) {
+    const l = t.toLowerCase();
+    if (l.includes("lower back") || l.includes("back")) out.add("lower back");
+    else if (l.includes("knee")) out.add("knees");
+    else if (l.includes("shoulder")) out.add("shoulders");
+    else if (l.includes("elbow") || l.includes("wrist")) out.add("elbows/wrists");
+    else if (l.includes("neck")) out.add("neck");
+    else if (l.includes("none")) out.add("none");
+    else if (l.trim()) out.add(l.trim());
+  }
+  return [...out];
+}
+
 /** Treat "NA"/"none"/etc. as no medical condition. */
 function cleanMedical(s: string): string {
   const l = s.trim().toLowerCase();
@@ -136,6 +152,12 @@ export function normalizeTallyPayload(body: TallyWebhookBody): NormalizedSubmiss
   const meals_per_day = [3, 4, 5].includes(mealsParsed) ? mealsParsed : 3;
 
   const avoid = cleanAvoid(asArray(get((l) => l.includes("avoid"))));
+
+  // V2 intake extras
+  const sessionRaw = asNumber(get((l) => l.includes("session")));
+  const session_minutes = [30, 45, 60, 75].includes(sessionRaw) ? sessionRaw : 60;
+  const injuries = cleanInjuries(asArray(get((l) => l.includes("injur") || l.includes("problem"))));
+  const stepsText = asString(get((l) => l.includes("step") || l.includes("10k"))).toLowerCase();
 
   return {
     submission_id,
@@ -170,7 +192,9 @@ export function normalizeTallyPayload(body: TallyWebhookBody): NormalizedSubmiss
       [["sedentary", "Sedentary"], ["light", "Light"], ["moder", "Moderate"], ["high", "High"]],
       "Moderate",
     ),
-    training_days: asString(get((l) => l.includes("train"))),
+    // "How many days do you train per week" — disambiguated from the other
+    // "train" labels (Training experience, Where do you train, session duration).
+    training_days: asString(get((l) => l.includes("many days") || (l.includes("day") && l.includes("train")))),
     diet_pref: matchEnum<DietPref>(
       // exclude the email label "…send your diet plan" and the consent "…diet plan is…"
       asString(get((l, t) => l.includes("diet") && !l.includes("plan") && t !== "INPUT_EMAIL")),
@@ -190,5 +214,42 @@ export function normalizeTallyPayload(body: TallyWebhookBody): NormalizedSubmiss
     medical_condition: cleanMedical(
       asString(get((l) => l.includes("medical") || l.includes("condition") || l.includes("health"))),
     ),
+
+    // --- V2 intake ---
+    // "Your 90-day target?" — exclude the "10k-step target" question.
+    target_text: asString(
+      get((l) => l.includes("90") || (l.includes("target") && !l.includes("step") && !l.includes("10k"))),
+    ),
+    experience: matchEnum(
+      asString(get((l) => l.includes("experience"))),
+      [["beginner", "Beginner"], ["intermediate", "Intermediate"], ["advanced", "Advanced"]],
+      "Beginner",
+    ),
+    equipment: matchEnum(
+      asString(get((l) => l.includes("where") && l.includes("train"))),
+      [
+        ["full gym", "Full gym"],
+        ["dumbbell", "Home (dumbbells + bands)"],
+        ["bodyweight", "Home (bodyweight only)"],
+        ["mixed", "Mixed"],
+        ["home", "Home (bodyweight only)"],
+        ["gym", "Full gym"],
+      ],
+      "Full gym",
+    ),
+    session_minutes,
+    injuries: injuries.length ? injuries : ["none"],
+    cooking: matchEnum(
+      asString(get((l) => l.includes("cook") || l.includes("eating setup"))),
+      [["i cook", "I cook"], ["family", "Family cooks"], ["tiffin", "Tiffin/mess"], ["mess", "Tiffin/mess"], ["eat out", "Eat out often"]],
+      "Family cooks",
+    ),
+    food_budget: matchEnum(
+      asString(get((l) => l.includes("budget"))),
+      [["lean", "Lean"], ["moder", "Moderate"], ["flex", "Flexible"]],
+      "Moderate",
+    ),
+    steps_goal: /\byes\b/.test(stepsText),
+    sleep_baseline: asString(get((l) => l.includes("sleep"))),
   };
 }

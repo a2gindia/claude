@@ -88,7 +88,7 @@ async function runPipeline(submission: NormalizedSubmission): Promise<{ planId: 
   console.log(`[pipeline] ${sid} plan generated in ${attempts} attempt(s)`);
 
   const planId = await withRetry(
-    () => writePlan({ email: submission.email, phone: submission.phone, name: submission.name, plan_json: plan }),
+    () => writePlan({ email: submission.email, phone: submission.phone, name: submission.name, plan_json: plan, intake: submission }),
     { label: `writePlan ${sid}` },
   );
   const magicLink = await withRetry(() => createLoginLink(submission.email, submission.phone), {

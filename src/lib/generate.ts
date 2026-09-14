@@ -102,9 +102,11 @@ function buildUserMessage(s: NormalizedSubmission, t: NutritionTargets): string 
     `workout_time: ${s.workout_time || "(not provided)"}`,
     `diet_pref: ${s.diet_pref}`,
     `allergies_dislikes: ${avoid}`,
-    `food_budget: (not collected)`,
+    `food_budget: ${s.food_budget || "Moderate"}`,
+    `eating_setup: ${s.cooking || "(not provided)"}   // who controls the meals`,
     `meals_per_day: ${s.meals_per_day}   // build EXACTLY this many meals`,
     `purchased_product: ${s.product || "(none captured)"}`,
+    `ninety_day_target: ${s.target_text || "(not provided)"}`,
     `medical_condition: ${s.medical_condition || "(none)"}`,
   ].join("\n");
 }
