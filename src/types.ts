@@ -65,6 +65,9 @@ export interface NutritionTargets {
   maintenance_kcal: number;
   target_kcal: number;
   protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number;
   /** the calorie floor that was applied for this customer */
   kcal_floor: number;
   goal: Goal;

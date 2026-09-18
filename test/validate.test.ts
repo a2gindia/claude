@@ -9,6 +9,9 @@ const targets: NutritionTargets = {
   maintenance_kcal: 2770,
   target_kcal: 3050,
   protein_g: 150,
+  carbs_g: 380,
+  fat_g: 85,
+  fiber_g: 40,
   kcal_floor: 1500,
   goal: "Muscle gain",
 };
@@ -20,12 +23,12 @@ const banned = ["game-changer", "supercharge"];
 function validPlan(): Plan {
   return {
     greeting: "Rohan, let's close the gap between training and results.",
-    summary: { maintenance_kcal: 2770, target_kcal: 3050, protein_g: 150, goal: "Muscle gain" },
+    summary: { maintenance_kcal: 2770, target_kcal: 3050, protein_g: 150, carbs_g: 380, fat_g: 85, fiber_g: 40, goal: "Muscle gain" },
     meals: [
-      { name: "Breakfast", time: "8 AM", items: ["eggs"], protein_g: 38, swaps: ["x"] },
-      { name: "Lunch", time: "1 PM", items: ["dal"], protein_g: 38, swaps: ["x"] },
-      { name: "Snack", time: "5 PM", items: ["whey"], protein_g: 36, swaps: ["x"] },
-      { name: "Dinner", time: "9 PM", items: ["paneer"], protein_g: 38, swaps: ["x"] },
+      { name: "Breakfast", time: "8 AM", items: ["eggs"], protein_g: 38, carbs_g: 95, fat_g: 21, fiber_g: 10, swaps: ["x"] },
+      { name: "Lunch", time: "1 PM", items: ["dal"], protein_g: 38, carbs_g: 95, fat_g: 21, fiber_g: 10, swaps: ["x"] },
+      { name: "Snack", time: "5 PM", items: ["whey"], protein_g: 36, carbs_g: 95, fat_g: 21, fiber_g: 10, swaps: ["x"] },
+      { name: "Dinner", time: "9 PM", items: ["paneer"], protein_g: 38, carbs_g: 95, fat_g: 22, fiber_g: 10, swaps: ["x"] },
     ],
     training_note: "eat a fuller meal around training",
     supplement_usage: { product: "", how_to_use: "" },

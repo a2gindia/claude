@@ -12,6 +12,9 @@ export function mockPlan(s: NormalizedSubmission, t: NutritionTargets): Plan {
   );
   const names = ["Breakfast", "Mid-morning", "Lunch", "Snack", "Dinner"];
   const times = ["8:00 AM", "11:00 AM", "1:30 PM", "5:00 PM", "8:30 PM"];
+  const carbsPer = Math.round(t.carbs_g / n);
+  const fatPer = Math.round(t.fat_g / n);
+  const fiberPer = Math.round(t.fiber_g / n);
 
   return {
     greeting: `[MOCK] ${s.name}, the gap between training hard and actually changing is what you eat after — let's close it.`,
@@ -19,6 +22,9 @@ export function mockPlan(s: NormalizedSubmission, t: NutritionTargets): Plan {
       maintenance_kcal: t.maintenance_kcal,
       target_kcal: t.target_kcal,
       protein_g: t.protein_g,
+      carbs_g: t.carbs_g,
+      fat_g: t.fat_g,
+      fiber_g: t.fiber_g,
       goal: t.goal,
     },
     meals: proteins.map((p, i) => ({
@@ -30,6 +36,9 @@ export function mockPlan(s: NormalizedSubmission, t: NutritionTargets): Plan {
         "vegetables + a complex carb",
       ],
       protein_g: p,
+      carbs_g: carbsPer,
+      fat_g: fatPer,
+      fiber_g: fiberPer,
       swaps: ["swap the carb for another whole grain", "swap the protein for one you prefer"],
     })),
     training_note:

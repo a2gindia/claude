@@ -8,6 +8,9 @@ export const PlanMealSchema = z.object({
   time: z.string(),
   items: z.array(z.string()),
   protein_g: z.number().int(),
+  carbs_g: z.number().int(),
+  fat_g: z.number().int(),
+  fiber_g: z.number().int(),
   swaps: z.array(z.string()),
 });
 
@@ -17,6 +20,9 @@ export const PlanSchema = z.object({
     maintenance_kcal: z.number().int(),
     target_kcal: z.number().int(),
     protein_g: z.number().int(),
+    carbs_g: z.number().int(),
+    fat_g: z.number().int(),
+    fiber_g: z.number().int(),
     goal: z.string(),
   }),
   meals: z.array(PlanMealSchema),

@@ -29,7 +29,10 @@ test("targets — male / moderate / muscle gain", () => {
   assert.equal(t.bmr, 1780);
   assert.equal(t.maintenance_kcal, 2760); // round10(1780 * 1.55)
   assert.equal(t.target_kcal, 3040); // round10(2760 * 1.10)
-  assert.equal(t.protein_g, 145); // round5(1.8 * 80 = 144)
+  assert.equal(t.protein_g, 185); // round5(2.3 * 80 = 184) — muscle gain
+  assert.equal(t.fat_g, 85); // round5(0.25 * 3040 / 9)
+  assert.equal(t.carbs_g, 385); // remaining kcal / 4
+  assert.equal(t.fiber_g, 43); // 14 g per 1000 kcal
 });
 
 test("targets — female / light / fat loss", () => {
@@ -43,7 +46,8 @@ test("targets — female / light / fat loss", () => {
   });
   assert.equal(t.maintenance_kcal, 1720); // round10(1249 * 1.375 = 1717.4)
   assert.equal(t.target_kcal, 1410); // round10(1720 * 0.82 = 1410.4)
-  assert.equal(t.protein_g, 100); // round5(1.8 * 55 = 99)
+  assert.equal(t.protein_g, 130); // round5(2.4 * 55 = 132) — fat loss keeps protein highest
+  assert.equal(t.fiber_g, 25); // clamped up to the 25 g floor
 });
 
 test("targets — fat-loss deficit never drops below the floor", () => {
