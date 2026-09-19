@@ -15,6 +15,7 @@ import {
   getStoredSubmission,
 } from "./lib/supabase.js";
 import { sendPlanReady, sendAlertEmail } from "./lib/email.js";
+import { sendPlanReadyWhatsApp } from "./lib/whatsapp.js";
 import { withRetry } from "./lib/retry.js";
 import { ConcurrencyQueue } from "./lib/queue.js";
 import type { NormalizedSubmission } from "./types.js";
@@ -96,7 +97,18 @@ async function runPipeline(submission: NormalizedSubmission): Promise<{ planId: 
   });
   console.log(`[pipeline] ${sid} stored as plan ${planId}; magic login link created`);
 
-  // Email is non-fatal: the plan is already stored and replayable.
+  // WhatsApp is the primary "plan ready" channel (email lands in spam). Non-fatal.
+  try {
+    const r = await withRetry(
+      () => sendPlanReadyWhatsApp({ name: submission.name, phone: submission.phone, magicLink }),
+      { label: `sendPlanReadyWhatsApp ${sid}` },
+    );
+    console.log(`[pipeline] ${sid} plan-ready WhatsApp: ${r.sent ? `sent (${r.messageId ?? "ok"})` : `skipped (${r.skipped})`}`);
+  } catch (waErr) {
+    console.warn(`[pipeline] ${sid} WhatsApp send failed: ${msg(waErr)}`);
+  }
+
+  // Email backup is non-fatal: the plan is already stored and replayable.
   try {
     const { id } = await withRetry(
       () => sendPlanReady({ name: submission.name, email: submission.email, magicLink }),
