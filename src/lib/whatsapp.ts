@@ -19,29 +19,27 @@ export async function sendPlanReadyWhatsApp(input: { name: string; phone: string
   const to = toWaNumber(input.phone);
   if (!to) return { sent: false, skipped: "no valid phone" };
 
-  const templateId = process.env.KWIKENGAGE_PLAN_READY_TEMPLATE_ID || "plan_ready";
+  const templateId = process.env.KWIKENGAGE_PLAN_READY_TEMPLATE_ID || "plan_ready_magic_link";
   const language = process.env.KWIKENGAGE_PLAN_READY_LANGUAGE || "en";
   const firstName = (input.name || "there").trim().split(/\s+/)[0];
+
+  // Template shape: body has one variable ({{1}} = first name); the login link is a
+  // DYNAMIC URL button whose base ends in ...&token_hash={{1}} — so the button
+  // variable is just the per-user token hash extracted from the magic link.
+  const th = input.magicLink.match(/[?&]token_hash=([^&]+)/);
+  const tokenHash = th ? decodeURIComponent(th[1]) : null;
+
+  const components: unknown[] = [{ type: "body", parameters: [{ type: "text", text: firstName }] }];
+  if (tokenHash) {
+    components.push({ type: "button", sub_type: "url", index: 0, parameters: [{ type: "text", text: tokenHash }] });
+  }
 
   const body = {
     to,
     channel: "whatsapp",
     content: {
       type: "template",
-      template: {
-        template_id: templateId,
-        language,
-        // Template body variables: {{1}} = first name, {{2}} = one-tap login link.
-        components: [
-          {
-            type: "body",
-            parameters: [
-              { type: "text", text: firstName },
-              { type: "text", text: input.magicLink },
-            ],
-          },
-        ],
-      },
+      template: { template_id: templateId, language, components },
     },
   };
 
