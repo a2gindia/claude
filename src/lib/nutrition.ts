@@ -24,15 +24,10 @@ const GOAL_FACTOR: Record<Goal, number> = {
   Performance: 1.0,
 };
 
-// Goal-based protein (g per kg bodyweight). Muscle gain / recomp lean high for
-// growth (~2.2–2.3); a fat-loss deficit goes highest to spare muscle. This is the
-// coaching baseline — the weekly engine can still nudge from here based on response.
-const PROTEIN_G_PER_KG: Record<Goal, number> = {
-  "Muscle gain": 2.3,
-  "Fat loss": 2.4,
-  Recomposition: 2.2,
-  Performance: 2.0,
-};
+// Protein target (g per kg bodyweight). Held at a moderate, achievable 1.8 —
+// captures nearly all the muscle benefit and is realistic to actually eat on
+// Indian/egg-based diets (2.2–2.4 gives ~200g+ targets that are too hard to hit).
+const PROTEIN_G_PER_KG = 1.8;
 const FAT_KCAL_SHARE = 0.25; // ~25% of calories from fat
 const FAT_G_PER_KG_FLOOR = 0.6; // hormonal-health floor
 const FIBER_G_PER_1000_KCAL = 14; // dietary-guideline density
@@ -76,8 +71,7 @@ export function computeTargets(
   const kcal_floor = calorieFloor(s.gender);
   const target_kcal = Math.max(round10(maintenance_kcal * factor), kcal_floor);
 
-  const perKg = PROTEIN_G_PER_KG[s.goal] ?? 2.0;
-  const protein_g = round5(perKg * s.weight_kg);
+  const protein_g = round5(PROTEIN_G_PER_KG * s.weight_kg);
   // Fat: ~25% of calories, but never below the hormonal-health floor.
   const fat_g = round5(Math.max((FAT_KCAL_SHARE * target_kcal) / 9, FAT_G_PER_KG_FLOOR * s.weight_kg));
   // Carbs fill whatever calories remain after protein + fat.
