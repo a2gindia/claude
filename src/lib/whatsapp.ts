@@ -13,14 +13,16 @@ function toWaNumber(phone: string): string | null {
 }
 
 export async function sendPlanReadyWhatsApp(input: { name: string; phone: string; magicLink: string }): Promise<{ sent: boolean; skipped?: string; messageId?: string }> {
-  const apiKey = process.env.KWIKENGAGE_API_KEY;
+  const apiKey = process.env.KWIKENGAGE_API_KEY?.trim();
   if (!apiKey) return { sent: false, skipped: "KWIKENGAGE_API_KEY not set" };
 
   const to = toWaNumber(input.phone);
   if (!to) return { sent: false, skipped: "no valid phone" };
 
-  const templateId = process.env.KWIKENGAGE_PLAN_READY_TEMPLATE_ID || "plan_ready_magic_link";
-  const language = process.env.KWIKENGAGE_PLAN_READY_LANGUAGE || "en";
+  // .trim() guards against a trailing newline in the Render env value (a common
+  // paste artifact that makes KwikEngage 404 the template).
+  const templateId = (process.env.KWIKENGAGE_PLAN_READY_TEMPLATE_ID || "plan_ready_magic_link").trim();
+  const language = (process.env.KWIKENGAGE_PLAN_READY_LANGUAGE || "en").trim();
   const firstName = (input.name || "there").trim().split(/\s+/)[0];
 
   // Template shape: body has one variable ({{1}} = first name); the login link is a
