@@ -23,18 +23,18 @@ export async function sendPlanReadyWhatsApp(input: { name: string; phone: string
   // paste artifact that makes KwikEngage 404 the template).
   const templateId = (process.env.KWIKENGAGE_PLAN_READY_TEMPLATE_ID || "plan_ready_magic_link").trim();
   const language = (process.env.KWIKENGAGE_PLAN_READY_LANGUAGE || "en").trim();
-  const firstName = (input.name || "there").trim().split(/\s+/)[0];
-
-  // Template shape: body has one variable ({{1}} = first name); the login link is a
-  // DYNAMIC URL button whose base ends in ...&token_hash={{1}} — so the button
-  // variable is just the per-user token hash extracted from the magic link.
+  // Template shape (plan_ready_magic_link_copy_copy, UTILITY):
+  //   Body: "Your A2G 90-day plan is ready. Tap below to open it." — ZERO variables.
+  //   Button: dynamic URL https://<app>/l/{{1}} where {{1}} = the per-user login token.
+  // So the ONLY parameter is the button token. Sending a body parameter here would
+  // trip Meta error #132000 (parameter count mismatch), because the body has no {{n}}.
   const th = input.magicLink.match(/[?&]token_hash=([^&]+)/);
   const tokenHash = th ? decodeURIComponent(th[1]) : null;
+  if (!tokenHash) return { sent: false, skipped: "no token_hash in magic link" };
 
-  const components: unknown[] = [{ type: "body", parameters: [{ type: "text", text: firstName }] }];
-  if (tokenHash) {
-    components.push({ type: "button", sub_type: "url", index: 0, parameters: [{ type: "text", text: tokenHash }] });
-  }
+  const components: unknown[] = [
+    { type: "button", sub_type: "url", index: 0, parameters: [{ type: "text", text: tokenHash }] },
+  ];
 
   const body = {
     to,
