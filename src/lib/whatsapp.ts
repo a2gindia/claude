@@ -48,10 +48,19 @@ export async function sendPlanReadyWhatsApp(input: { name: string; phone: string
     headers: { "Content-Type": "application/json", Authorization: apiKey },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`KwikEngage ${res.status}: ${detail.slice(0, 300)}`);
+  const raw = await res.text().catch(() => "");
+  console.log(`[whatsapp] KwikEngage HTTP ${res.status} body: ${raw.slice(0, 500)}`);
+  if (!res.ok) throw new Error(`KwikEngage ${res.status}: ${raw.slice(0, 300)}`);
+
+  let json: { success?: boolean; messageId?: string; data?: { messageId?: string }; error?: string } = {};
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    /* non-JSON 2xx — treat as sent */
   }
-  const json = (await res.json().catch(() => ({}))) as { messageId?: string };
-  return { sent: true, messageId: json.messageId };
+  // Some gateways return HTTP 200 with a failure body — don't count that as sent.
+  if (json.success === false || json.error) {
+    throw new Error(`KwikEngage accepted (${res.status}) but reported failure: ${raw.slice(0, 300)}`);
+  }
+  return { sent: true, messageId: json.messageId ?? json.data?.messageId };
 }
