@@ -13,7 +13,11 @@ import {
   logRun,
   getRunStatus,
   getStoredSubmission,
+  upsertDietWeek,
+  upsertWeeklyReport,
+  type WeeklySummary,
 } from "./lib/supabase.js";
+import { generateWeeklyDiet } from "./lib/weekly.js";
 import { sendPlanReady, sendAlertEmail } from "./lib/email.js";
 import { sendPlanReadyWhatsApp } from "./lib/whatsapp.js";
 import { withRetry } from "./lib/retry.js";
@@ -78,6 +82,70 @@ app.post("/admin/regenerate/:submissionId", (req: Request, res: Response) => {
   res.status(202).json({ status: "regenerating", submissionId });
   void queue.enqueue(() => regenerate(submissionId));
 });
+
+// Weekly DIET adaptation, delegated here by the app's daily cron because Vercel Hobby's
+// 60s function cap kills the ~60–90s Claude call. Auth by WEEKLY_TRIGGER_SECRET (shared
+// with the app). ACKs 202 immediately, then generates + writes the diet async — so the
+// caller (Vercel) never has to wait. The app's daily self-healing cron re-fires if a run
+// fails, so a dropped job heals itself the next day.
+app.post("/internal/weekly", (req: Request, res: Response) => {
+  const secret = process.env.WEEKLY_TRIGGER_SECRET ?? "";
+  const provided =
+    (req.header("authorization") ?? "").replace(/^Bearer\s+/i, "") || req.header("x-weekly-secret") || "";
+  if (!secret || provided !== secret) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
+  const body = (req.body ?? {}) as {
+    userId?: string;
+    nextWeek?: number;
+    goal?: string;
+    summary?: WeeklySummary;
+    originalPlan?: unknown;
+  };
+  if (!body.userId || !body.nextWeek || !body.summary) {
+    res.status(400).json({ error: "userId, nextWeek and summary are required" });
+    return;
+  }
+
+  res.status(202).json({ status: "generating", userId: body.userId, week: body.nextWeek });
+  void queue.enqueue(() =>
+    runWeeklyDiet({
+      userId: body.userId!,
+      nextWeek: body.nextWeek!,
+      goal: body.goal ?? "Recomposition",
+      summary: body.summary!,
+      originalPlan: body.originalPlan ?? null,
+    }),
+  );
+});
+
+/** Generate + persist one user's next-week diet (the slow Claude call runs with no timeout here). */
+async function runWeeklyDiet(input: {
+  userId: string;
+  nextWeek: number;
+  goal: string;
+  summary: WeeklySummary;
+  originalPlan: unknown;
+}): Promise<void> {
+  const tag = `${input.userId.slice(0, 8)} wk${input.nextWeek}`;
+  try {
+    console.log(`[weekly] ${tag} generating diet…`);
+    const out = await generateWeeklyDiet({
+      goal: input.goal,
+      summary: input.summary,
+      originalPlan: input.originalPlan,
+      nextWeek: input.nextWeek,
+    });
+    await upsertDietWeek(input.userId, input.nextWeek, out.adapted_diet_plan, out.trainer_note);
+    await upsertWeeklyReport(input.userId, input.summary, out.trainer_note);
+    console.log(`[weekly] ${tag} done — diet written`);
+  } catch (err) {
+    console.error(`[weekly] ${tag} failed:`, msg(err));
+    await alertOps(`weekly diet generation failed for ${tag}: ${msg(err)}`);
+  }
+}
 
 /** Core pipeline: generate -> store -> magic link -> email. Store/link retry; email is non-fatal. */
 async function runPipeline(submission: NormalizedSubmission): Promise<{ planId: string; attempts: number }> {
@@ -181,4 +249,5 @@ app.listen(PORT, () => {
   console.log("  GET  /health");
   console.log("  POST /webhook/tally");
   console.log("  POST /admin/regenerate/:submissionId");
+  console.log("  POST /internal/weekly");
 });

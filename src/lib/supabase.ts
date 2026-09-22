@@ -193,6 +193,69 @@ export async function getRunStatus(submissionId: string): Promise<string | null>
   }
 }
 
+// ---- Weekly adaptation writes (the app's diet_plans + weekly_reports tables) ----
+// Called by POST /internal/weekly. Uses the service role (bypasses RLS), same as the
+// app's cron would. Upserts are keyed so a retry/self-heal never duplicates a week.
+
+/** Upsert next week's diet plan (the app reads diet_plans.plan_json as its DietWeekJson). */
+export async function upsertDietWeek(
+  userId: string,
+  weekNumber: number,
+  planJson: unknown,
+  trainerNote: string,
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("diet_plans")
+    .upsert(
+      { user_id: userId, week_number: weekNumber, plan_json: planJson, trainer_note: trainerNote },
+      { onConflict: "user_id,week_number" },
+    );
+  if (error) throw new Error(`upsertDietWeek failed: ${error.message}`);
+}
+
+/** Adherence summary shape the app's aggregateWeek produces (only the fields we store). */
+export interface WeeklySummary {
+  week_number: number;
+  diet_adherence_pct: number;
+  workout_adherence_pct: number;
+  avg_sleep_hours: number;
+  avg_water_litres: number;
+  supplement_streak_days: number;
+  steps_hit_days: number;
+  top_diet_miss_reason: string | null;
+}
+
+/** Best-effort weekly report write (mirrors the app's generateReport). Never throws. */
+export async function upsertWeeklyReport(
+  userId: string,
+  summary: WeeklySummary,
+  trainerNote: string,
+): Promise<void> {
+  try {
+    const { error } = await getSupabase()
+      .from("weekly_reports")
+      .upsert(
+        {
+          user_id: userId,
+          week_number: summary.week_number,
+          diet_adherence: summary.diet_adherence_pct,
+          workout_adherence: summary.workout_adherence_pct,
+          avg_sleep: summary.avg_sleep_hours,
+          avg_water: summary.avg_water_litres,
+          supplement_streak: summary.supplement_streak_days,
+          steps_hit: summary.steps_hit_days,
+          top_missed_reason: summary.top_diet_miss_reason,
+          trainer_note: trainerNote,
+          generated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,week_number" },
+      );
+    if (error) console.warn(`[upsertWeeklyReport] skipped: ${error.message}`);
+  } catch (err) {
+    console.warn(`[upsertWeeklyReport] skipped: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** Fetch the stored normalized submission for replay (/admin/regenerate). Throws on error. */
 export async function getStoredSubmission(submissionId: string): Promise<NormalizedSubmission | null> {
   const { data, error } = await getSupabase()
